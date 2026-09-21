@@ -87,13 +87,11 @@ nav.tabs button .bi{font-size:10px}
 .selrow .nm{flex:1;min-width:0}
 .selrow .nm b{font-weight:400;font-size:15px;display:block;overflow-wrap:anywhere}
 .selrow .nm span{font-size:12px;color:var(--pp-ink-hint);display:block;font-family:"Inter",sans-serif}
-.step{display:flex;align-items:center;border:.5px solid var(--pp-line-strong);border-radius:8px;overflow:hidden;flex:none}
-.step button{appearance:none;background:var(--pp-card-sub);border:0;width:34px;height:34px;font-size:17px;line-height:1;color:var(--pp-ink);cursor:pointer;font-family:inherit}
-.step .q{min-width:36px;text-align:center}
 .x{appearance:none;background:none;border:0;color:var(--pp-ink-hint);font-size:19px;line-height:1;cursor:pointer;padding:6px;flex:none;font-family:inherit}
 .urg{display:flex;gap:8px;padding-bottom:16px;border-bottom:.5px solid var(--pp-line);flex-wrap:wrap}
-.selrow + .urg{margin-top:-2px}
-.selrow{border-bottom:0}
+.selrow{border-bottom:0;padding-bottom:4px}
+.urglbl{margin:0 0 7px;font-size:12px;color:var(--pp-ink-sub)}
+.urglbl em{font-style:normal;color:var(--pp-ink-hint);font-family:"Inter",sans-serif;margin-left:4px}
 .urg button{
   appearance:none;font:inherit;font-size:13px;cursor:pointer;
   background:var(--pp-card-sub);border:.5px solid transparent;border-radius:8px;
@@ -298,10 +296,8 @@ function viewOrder(){
 }
 function rowSel(k,zh,idn,r,kind){
   var h='<div class="selrow"><div class="nm"><b>'+esc(zh)+'</b>'+(idn?'<span>'+esc(idn)+'</span>':"")+'</div>'
-   +'<div class="step"><button data-q="-1" data-k="'+k+'" data-kind="'+kind+'" aria-label="減少">−</button>'
-   +'<span class="q mono">'+r.qty+'</span>'
-   +'<button data-q="1" data-k="'+k+'" data-kind="'+kind+'" aria-label="增加">+</button></div>'
-   +'<button class="x" data-del="'+k+'" data-kind="'+kind+'" aria-label="移除">×</button></div><div class="urg">';
+   +'<button class="x" data-del="'+k+'" data-kind="'+kind+'" aria-label="移除">×</button></div>'
+   +'<p class="urglbl">急迫性 <em>Kapan perlunya?</em></p><div class="urg">';
   for(var u=0;u<3;u++)h+='<button data-u="'+u+'" data-k="'+k+'" data-kind="'+kind+'" aria-pressed="'+(r.urg===u)+'">'
     +URG[u].zh+'<span class="bi">'+URG[u].idn+'</span></button>';
   return h+'</div>';
@@ -316,14 +312,14 @@ function dockOrder(){
 /* ---------- 送出 ---------- */
 function payload(){
   var l=[],f=[];
-  Object.keys(sel).forEach(function(id){l.push([id,sel[id].qty,sel[id].urg])});
-  freeRows.forEach(function(r){f.push([r.name,r.qty,r.urg])});
+  Object.keys(sel).forEach(function(id){l.push([id,sel[id].urg])});
+  freeRows.forEach(function(r){f.push([r.name,r.urg])});
   return {t:Date.now(),l:l,f:f};
 }
 function payloadText(p){
   var lines=[];
-  (p.l||[]).forEach(function(a){var it=byId(a[0]);if(it)lines.push("・"+it.zh+" ×"+a[1]+(a[2]?"（"+URG[a[2]].zh+"）":""))});
-  (p.f||[]).forEach(function(a){lines.push("・"+a[0]+" ×"+a[1]+(a[2]?"（"+URG[a[2]].zh+"）":""))});
+  (p.l||[]).forEach(function(a){var it=byId(a[0]);if(it)lines.push("・"+it.zh+(a[1]?"（"+URG[a[1]].zh+"）":""))});
+  (p.f||[]).forEach(function(a){lines.push("・"+a[0]+(a[1]?"（"+URG[a[1]].zh+"）":""))});
   return "太太，家裡要補這些：\n"+lines.join("\n");
 }
 function showSent(){
@@ -371,18 +367,18 @@ function showSent(){
 /* ---------- 待採購 ---------- */
 function receive(p){
   var ts=p.t||Date.now();
-  (p.l||[]).forEach(function(a){var it=byId(a[0]);if(it)LIST.push({lid:uid("l"),iid:it.id,name:it.zh,qty:a[1]||1,urg:a[2]||0,done:false,ts:ts})});
-  (p.f||[]).forEach(function(a){LIST.push({lid:uid("l"),iid:null,name:a[0],qty:a[1]||1,urg:a[2]||0,done:false,ts:ts})});
+  (p.l||[]).forEach(function(a){var it=byId(a[0]);if(it)LIST.push({lid:uid("l"),iid:it.id,name:it.zh,urg:a[1]||0,done:false,ts:ts})});
+  (p.f||[]).forEach(function(a){LIST.push({lid:uid("l"),iid:null,name:a[0],urg:a[1]||0,done:false,ts:ts})});
   saveList();
 }
 function viewInbox(){
   var p=inbox,rows=[];
-  (p.l||[]).forEach(function(a){var it=byId(a[0]);if(it)rows.push([it.zh,a[1],a[2]])});
-  (p.f||[]).forEach(function(a){rows.push([a[0],a[1],a[2]])});
+  (p.l||[]).forEach(function(a){var it=byId(a[0]);if(it)rows.push([it.zh,a[1]])});
+  (p.f||[]).forEach(function(a){rows.push([a[0],a[1]])});
   var h='<h2 class="cat">收到一張單 · '+fmt(p.t||Date.now())+'</h2><div class="card">';
   rows.forEach(function(r){
-    h+='<div class="buyrow"><div class="body"><b>'+esc(r[0])+'</b> <span class="mono" style="color:var(--pp-ink-hint)">×'+r[1]+'</span>'
-     +(r[2]?'<span class="tag">'+URG[r[2]].zh+'</span>':"")+'</div></div>'});
+    h+='<div class="buyrow"><div class="body"><b>'+esc(r[0])+'</b>'
+     +(r[1]?'<span class="tag">'+URG[r[1]].zh+'</span>':"")+'</div></div>'});
   return h+'<div class="field" style="margin-top:16px"><button class="btn cta" id="takeBtn">加入待採購</button>'
    +'<button class="btn ghost" id="dropBtn">先不要</button></div></div>';
 }
@@ -417,7 +413,7 @@ function buyRow(r){
   var it=r.iid?byId(r.iid):null,url=it&&it.url?it.url:"";
   return '<div class="buyrow'+(r.done?" done":"")+'">'
    +'<button class="tick" data-tick="'+r.lid+'" aria-pressed="'+r.done+'" aria-label="買好了">✓</button>'
-   +'<div class="body"><b>'+esc(r.name)+'</b> <span class="mono" style="color:var(--pp-ink-hint)">×'+r.qty+'</span>'
+   +'<div class="body"><b>'+esc(r.name)+'</b>'
    +(r.urg&&!r.done?'<span class="tag">'+URG[r.urg].zh+'</span>':"")
    +'<div class="meta mono">'+fmt(r.ts)+'</div></div>'
    +(url&&!r.done?'<a class="go" href="'+esc(url)+'" target="_blank" rel="noopener">去買</a>':(r.done?"":'<span class="nolink">無連結</span>'))
@@ -490,9 +486,7 @@ function wire(){
   wireCommon();
   if(mode==="order"){
     document.querySelectorAll("[data-pick]").forEach(function(b){
-      b.onclick=function(){var id=b.dataset.pick;if(sel[id])delete sel[id];else sel[id]={qty:1,urg:0};render()}});
-    document.querySelectorAll("[data-q]").forEach(function(b){
-      b.onclick=function(){var r=refOf(b.dataset.k,b.dataset.kind);if(!r)return;r.qty=Math.max(1,r.qty+(+b.dataset.q));render()}});
+      b.onclick=function(){var id=b.dataset.pick;if(sel[id])delete sel[id];else sel[id]={urg:0};render()}});
     document.querySelectorAll(".urg [data-u]").forEach(function(b){
       b.onclick=function(){var r=refOf(b.dataset.k,b.dataset.kind);if(!r)return;r.urg=+b.dataset.u;render()}});
     document.querySelectorAll("[data-del]").forEach(function(b){
@@ -500,7 +494,7 @@ function wire(){
         if(b.dataset.kind==="free")freeRows.splice(+b.dataset.del.slice(1),1);else delete sel[b.dataset.del];
         render()}});
     var fi=$("#freeIn"),fa=$("#freeAdd");
-    if(fa)fa.onclick=function(){var v=(fi.value||"").trim();if(!v)return;freeRows.push({name:v,qty:1,urg:0});render();var n=$("#freeIn");if(n)n.focus()};
+    if(fa)fa.onclick=function(){var v=(fi.value||"").trim();if(!v)return;freeRows.push({name:v,urg:0});render();var n=$("#freeIn");if(n)n.focus()};
     if(fi)fi.onkeydown=function(e){if(e.key==="Enter"){e.preventDefault();fa.click()}};
     var mk=$("#mk");if(mk)mk.onclick=showSent;
   }
