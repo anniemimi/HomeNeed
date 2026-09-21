@@ -55,6 +55,17 @@ h2.cat{
   margin:32px 0 12px;display:flex;align-items:center;gap:12px;
 }
 h2.cat::after{content:"";flex:1;height:0;border-top:.5px solid var(--pp-line)}
+h2.cat em{font-style:normal;font-weight:400;letter-spacing:0;color:var(--pp-ink-hint);font-family:"Inter",sans-serif;font-size:12px}
+.bi{display:block;font-size:11px;font-weight:400;letter-spacing:0;color:var(--pp-ink-hint);font-family:"Inter",sans-serif;line-height:1.35;margin-top:1px}
+.btn .bi{color:inherit;opacity:.72}
+nav.tabs button .bi{font-size:10px}
+.urg button .bi{font-size:10px}
+.steps{counter-reset:s;margin:0;padding:0;list-style:none}
+.steps li{counter-increment:s;position:relative;padding-left:28px;margin-bottom:14px;font-size:15px;line-height:1.6}
+.steps li::before{content:counter(s);position:absolute;left:0;top:1px;width:20px;height:20px;border-radius:50%;
+  background:var(--pp-ink);color:var(--pp-page);font-size:12px;font-family:"JetBrains Mono",monospace;
+  display:grid;place-items:center;line-height:1}
+.steps li span{display:block;font-size:13px;color:var(--pp-ink-sub);font-family:"Inter",sans-serif;line-height:1.5;margin-top:2px}
 
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(158px,1fr));gap:8px}
 .chip{
@@ -170,6 +181,7 @@ label.lbl{font-size:12px;color:var(--pp-ink-sub);display:block;margin-bottom:4px
 <script id="data" type="application/json">
 {"v":1,
 "cats":["紙類・保鮮","垃圾袋","清潔劑","刷洗用具","個人・小孩","寵物"],
+"catsIdn":{"紙類・保鮮":"Tisu & plastik wrap","垃圾袋":"Kantong sampah","清潔劑":"Cairan pembersih","刷洗用具":"Alat cuci & sikat","個人・小孩":"Pribadi & anak","寵物":"Hewan peliharaan"},
 "chans":["社區群組","大姊代購","全聯","momo","蝦皮","Coupang"],
 "items":[
 {"id":"i01","zh":"衛生紙","idn":"Tisu toilet","cat":"紙類・保鮮","chan":"社區群組","url":""},
@@ -220,12 +232,14 @@ var LS={
 var D=JSON.parse(document.getElementById("data").textContent);
 var ITEMS=LS.get("items",null)||D.items;
 var CATS=LS.get("cats",null)||D.cats;
+var CATSIDN=LS.get("catsIdn",null)||D.catsIdn||{};
+function catLabel(c){var i=CATSIDN[c];return esc(c)+(i?' <em>'+esc(i)+'</em>':"")}
 var CHANS=LS.get("chans",null)||D.chans;
 var LIST=LS.get("list",[]);
 var ADMIN=LS.get("admin",false);
 
 var mode="order", sel={}, freeRows=[], inbox=null, toastT=null;
-var URG=[{zh:"還夠，快沒了",idn:"Masih ada"},{zh:"這兩天要",idn:"2 hari ini"},{zh:"今天就要",idn:"Hari ini"}];
+var URG=[{zh:"還夠，快沒了",idn:"Masih ada, hampir habis"},{zh:"這兩天要",idn:"Perlu 2 hari ini"},{zh:"今天就要",idn:"Perlu hari ini"}];
 
 function uid(p){return p+Math.random().toString(36).slice(2,8)}
 function byId(id){for(var i=0;i<ITEMS.length;i++)if(ITEMS[i].id===id)return ITEMS[i];return null}
@@ -234,19 +248,20 @@ function b64d(s){s=s.replace(/-/g,"+").replace(/_/g,"/");while(s.length%4)s+="="
 function toast(m){var e=$("#toast");if(!e){e=document.createElement("div");e.id="toast";e.className="toast";document.body.appendChild(e)}
   e.textContent=m;e.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){e.hidden=true},2200)}
 function fmt(ts){var d=new Date(ts);return (d.getMonth()+1)+"/"+d.getDate()+" "+String(d.getHours()).padStart(2,"0")+":"+String(d.getMinutes()).padStart(2,"0")}
-function saveAll(){LS.set("items",ITEMS);LS.set("cats",CATS);LS.set("chans",CHANS)}
+function saveAll(){LS.set("items",ITEMS);LS.set("cats",CATS);LS.set("chans",CHANS);LS.set("catsIdn",CATSIDN)}
 function saveList(){LS.set("list",LIST)}
 
 /* ---------- 版面 ---------- */
 function header(){
-  var tabs=[["order","採買單"]];
-  if(ADMIN)tabs.push(["buy","待採購"],["manage","品項管理"]);
+  var tabs=[["order","採買單","Daftar belanja"]];
+  if(ADMIN)tabs.push(["buy","待採購",""],["manage","品項管理",""]);
   var n=LIST.filter(function(r){return !r.done}).length;
   return '<header class="top"><div class="brand"><h1>家務補給單</h1>'
     +'<span class="sub">Daftar Belanja</span></div><nav class="tabs">'
     +tabs.map(function(t){
       var b=(t[0]==="buy"&&n)?' <span class="mono">'+n+'</span>':"";
-      return '<button data-tab="'+t[0]+'" aria-current="'+(mode===t[0])+'">'+t[1]+b+'</button>'}).join("")
+      return '<button data-tab="'+t[0]+'" aria-current="'+(mode===t[0])+'">'+t[1]+b
+        +(t[2]?'<span class="bi">'+t[2]+'</span>':"")+'</button>'}).join("")
     +'</nav></header>';
 }
 function footer(){
@@ -260,22 +275,22 @@ function viewOrder(){
   CATS.forEach(function(c){
     var its=ITEMS.filter(function(i){return i.cat===c});
     if(!its.length)return;
-    h+='<h2 class="cat">'+esc(c)+'</h2><div class="grid">';
+    h+='<h2 class="cat">'+catLabel(c)+'</h2><div class="grid">';
     its.forEach(function(i){
       h+='<button class="chip" data-pick="'+i.id+'" aria-pressed="'+(!!sel[i.id])+'">'
         +'<span class="zh">'+esc(i.zh)+'</span><span class="idn">'+esc(i.idn)+'</span></button>'});
     h+='</div>';
   });
-  h+='<h2 class="cat">清單上沒有的</h2><div class="card">'
+  h+='<h2 class="cat">清單上沒有的 <em>Tidak ada di daftar</em></h2><div class="card">'
    +'<label class="lbl" for="freeIn">自己打上去 · Tulis sendiri</label>'
-   +'<div class="field"><input type="text" id="freeIn" placeholder="例：燈泡"><button class="btn ghost" id="freeAdd">加入</button></div>'
+   +'<div class="field"><input type="text" id="freeIn" placeholder="例：燈泡 / Contoh: lampu"><button class="btn ghost" id="freeAdd">加入<span class="bi">Tambah</span></button></div>'
    +'<p class="note">講不清楚的東西，用 LINE 拍張照片一起傳給太太。'
    +'<span style="display:block;font-family:\'Inter\',sans-serif;color:var(--pp-ink-hint)">Kalau sulit dijelaskan, kirim juga fotonya lewat LINE.</span></p>';
   if(freeRows.length){h+='<div style="margin-top:14px">';freeRows.forEach(function(r,i){h+=rowSel("f"+i,r.name,"",r,"free")});h+='</div>'}
   h+='</div>';
   var keys=Object.keys(sel);
   if(keys.length){
-    h+='<h2 class="cat">已選</h2><div class="card">';
+    h+='<h2 class="cat">已選 <em>Sudah dipilih</em></h2><div class="card">';
     keys.forEach(function(id){var it=byId(id);if(!it){delete sel[id];return}h+=rowSel(id,it.zh,it.idn,sel[id],"item")});
     h+='</div>';
   }
@@ -287,14 +302,15 @@ function rowSel(k,zh,idn,r,kind){
    +'<span class="q mono">'+r.qty+'</span>'
    +'<button data-q="1" data-k="'+k+'" data-kind="'+kind+'" aria-label="增加">+</button></div>'
    +'<button class="x" data-del="'+k+'" data-kind="'+kind+'" aria-label="移除">×</button></div><div class="urg">';
-  for(var u=0;u<3;u++)h+='<button data-u="'+u+'" data-k="'+k+'" data-kind="'+kind+'" aria-pressed="'+(r.urg===u)+'">'+URG[u].zh+'</button>';
+  for(var u=0;u<3;u++)h+='<button data-u="'+u+'" data-k="'+k+'" data-kind="'+kind+'" aria-pressed="'+(r.urg===u)+'">'
+    +URG[u].zh+'<span class="bi">'+URG[u].idn+'</span></button>';
   return h+'</div>';
 }
 function dockOrder(){
   var n=Object.keys(sel).length+freeRows.length;
   if(!n)return "";
   return '<div class="dock"><div class="in"><div class="count">已選 <b class="mono">'+n+'</b> 樣<br>Terpilih '+n+' barang</div>'
-    +'<button class="btn cta" id="mk">完成，送給太太</button></div></div>';
+    +'<button class="btn cta" id="mk">完成，送給太太<span class="bi">Selesai, kirim ke Nyonya</span></button></div></div>';
 }
 
 /* ---------- 送出 ---------- */
@@ -315,23 +331,38 @@ function showSent(){
   var link=location.href.split("#")[0]+"#o="+b64e(JSON.stringify(p));
   var msg=payloadText(p)+"\n\n"+link;
   $("#root").innerHTML='<div class="wrap">'+header()
-   +'<h2 class="cat">送出</h2><div class="card">'
-   +'<p class="lead" style="margin-top:0">把下面這段傳給太太就好。<span class="idn">Kirim pesan ini ke Nyonya.</span></p>'
-   +'<textarea id="msgBox" rows="10" readonly>'+esc(msg)+'</textarea>'
-   +'<p class="note">有拍照片的話，記得跟這段訊息一起傳。'
-   +'<span style="display:block;font-family:\'Inter\',sans-serif;color:var(--pp-ink-hint)">Kalau ada foto, kirim bersama pesan ini.</span></p>'
-   +'<div class="field"><a class="btn cta" id="lineBtn" href="https://line.me/R/share?text='+encodeURIComponent(msg)+'" target="_blank" rel="noopener" style="text-decoration:none">用 LINE 傳</a>'
-   +'<button class="btn ghost" id="copyBtn">複製 · Salin</button></div>'
+   +'<h2 class="cat">送出 <em>Kirim</em></h2><div class="card">'
+   +'<ol class="steps">'
+   +'<li>按下面紅色的「全部複製」<span>Tekan tombol merah di bawah: 全部複製 (Salin semua)</span></li>'
+   +'<li>打開自己的 LINE，貼上，傳給太太<span>Buka LINE Anda, tempel (paste), kirim ke Nyonya</span></li>'
+   +'</ol>'
+   +'<button class="btn cta wide" id="copyBtn">全部複製<span class="bi">Salin semua</span></button>'
+   +'<textarea id="msgBox" rows="9" readonly style="margin-top:14px">'+esc(msg)+'</textarea>'
+   +'<p class="note">整段都要傳過去，不要只傳一部分。有拍照片的話，記得一起傳。'
+   +'<span style="display:block;font-family:\'Inter\',sans-serif;color:var(--pp-ink-hint)">Kirim SEMUA tulisan ini, jangan sebagian saja. Kalau ada foto, kirim sekalian.</span></p>'
    +(ADMIN?'<button class="btn ghost wide" id="selfTake" style="margin-top:10px">我自己收下（直接加進待採購）</button>':"")
-   +'<button class="btn ghost wide" id="backBtn" style="margin-top:10px">回到清單 · Kembali</button>'
+   +'<button class="btn ghost wide" id="backBtn" style="margin-top:10px">回到清單<span class="bi">Kembali ke daftar</span></button>'
    +'</div>'+footer()+'</div>';
   $("#dock").innerHTML="";
   wireCommon();
   $("#copyBtn").onclick=function(){
-    var ta=$("#msgBox");ta.select();ta.setSelectionRange(0,99999);var ok=false;
-    try{if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(msg);ok=true}}catch(e){}
-    if(!ok){try{ok=document.execCommand("copy")}catch(e){}}
-    toast(ok?"複製好了":"請長按選取複製");
+    var btn=this,ta=$("#msgBox");
+    ta.select();ta.setSelectionRange(0,99999);
+    var done=function(){
+      btn.innerHTML='已複製 ✓<span class="bi">Sudah tersalin — buka LINE, tempel</span>';
+      toast("複製好了，打開 LINE 貼上");
+    };
+    var fail=function(){
+      btn.innerHTML='請長按下面文字選「全選」再「複製」<span class="bi">Tekan lama tulisan di bawah → pilih semua → salin</span>';
+      toast("請長按下面的文字複製");
+    };
+    var ok=false;
+    try{if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(msg).then(done)["catch"](function(){
+        var f=false;try{f=document.execCommand("copy")}catch(e){}
+        f?done():fail();
+      });ok=true}}catch(e){}
+    if(!ok){var f=false;try{f=document.execCommand("copy")}catch(e){}f?done():fail()}
   };
   if(ADMIN)$("#selfTake").onclick=function(){receive(p);sel={};freeRows=[];mode="buy";render()};
   $("#backBtn").onclick=function(){sel={};freeRows=[];mode="order";render();window.scrollTo(0,0)};
@@ -425,7 +456,7 @@ function dockManage(){
 function buildFile(){
   var css=document.getElementById("css").textContent;
   var app=document.getElementById("app").textContent;
-  var json=JSON.stringify({v:1,cats:CATS,chans:CHANS,items:ITEMS},null,1).replace(/</g,"\\u003c");
+  var json=JSON.stringify({v:1,cats:CATS,catsIdn:CATSIDN,chans:CHANS,items:ITEMS},null,1).replace(/</g,"\\u003c");
   var S1="<scr"+"ipt",E1="</scr"+"ipt>";
   return '<!doctype html>\n<html lang="zh-Hant">\n<head>\n<meta charset="utf-8">\n'
    +'<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'
